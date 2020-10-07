@@ -1,0 +1,338 @@
+
+
+
+***load architecture-parallel.maude 
+
+load /Users/shiji/PMA/papers/upscale/implementations/maude-new-vers/maude-random-schedule/architecture-parallel.maude 
+
+mod RULES is
+
+	inc TASK-TABLE .
+	pr SET{Status} .
+	pr SET{Oid} .
+	
+	op no : MemoryMap Status -> Address .
+	op selectStatus : MapPolicy Cache{Int, MemoryMap} Int Address -> Status [ctor] .
+	op selectStatus : MemoryMap Address -> Status .
+	op cacheLineSet : Cache{Int, MemoryMap} Int Address MapPolicy -> MemoryMap .
+	
+	op updateLine : MapPolicy Cache{Int, MemoryMap} Int Address Status Status -> Cache{Int, MemoryMap} .
+	op updateLine : MapPolicy Cache{Int, MemoryMap} Int MemoryPartition -> Cache{Int, MemoryMap} .
+	op updateLine : MemoryMap Address -> MemoryMap .
+	
+	op allModified : MemoryMap MapPolicy -> Bool .
+	op LineToFlush : MemoryMap Status MapPolicy -> Address .
+	
+	op fetchUpdateLine : Cache{Int, MemoryMap} Int Address Status MapPolicy -> Cache{Int, MemoryMap} .
+	op removeLine : MapPolicy Cache{Int, MemoryMap} Int Address MemoryPartition -> Cache{Int, MemoryMap} .
+	
+	
+	op statusSet : MemoryMap Set{Status}  -> Set{Status} .
+	op statusSet : MemoryMap -> Set{Status} .
+	
+	op Select : Cache{Int, MemoryMap} Int Address Status MapPolicy -> Cache{Int, MemoryMap} .
+	op cacheFilter : Cache{Int, MemoryMap} Int Address MapPolicy -> Cache{Int, MemoryMap} .
+	
+	op commitCache : Cache{Int, MemoryMap} MapPolicy Int -> Cache{Int, MemoryMap} .
+	op commitCache : Cache{Int, MemoryMap} MapPolicy Int Cache{Int, MemoryMap} -> Cache{Int, MemoryMap} .
+	op commitMemory : Cache{Int, MemoryMap} MemoryMap -> MemoryMap .
+	op Log : Oid -> Oid .
+	op ExistObj : Oid Configuration -> Bool .
+	
+	var Re Re' : Instruction .
+	var Ms : Msg .
+	vars C1 C2  Me Tbl Sy Sch Ta : Oid .
+	var ReSet : OidSet .
+	var addr : Tbl{Reference, Address} .
+	var Ca Ca' : Cache{Int, MemoryMap} .
+	vars  sst' rst rst' d d' sq sq' Rs Rs' : stList .
+	vars N x  x' m m' h n n' : Address .
+	var size i r : Int .
+	var mapPol : MapPolicy .
+	var s s' ms' : Status .
+	var REST REST' : Configuration .
+	var mapSet M M' : MemoryMap .
+	var st : Set{Status} .
+	var sst : Set{stList} .
+	vars T T' : Qid .
+	var task : task{Qid, stList} .
+	var Tids : QidSet .
+	var TidList : QidList .
+	var Atts : AttributeSet .
+	
+	
+	ceq selectStatus(Assoc(i), Ca, size, N) = sh if (N |-> sh) in cacheLineSet(Ca, size, N, Assoc(i)) .
+	ceq selectStatus(Assoc(i), Ca, size, N) = mo if (N |-> mo) in cacheLineSet(Ca, size, N, Assoc(i)) .
+	ceq selectStatus(Assoc(i), Ca, size, N) = inv if (N |-> inv) in cacheLineSet(Ca, size, N, Assoc(i)) .
+	eq selectStatus(Assoc(i), Ca, size, N) = unknown [owise]  .
+	
+	ceq selectStatus(M, N) = sh if (N |-> sh) in M .
+	ceq selectStatus(M, N) = inv if (N |-> inv) in M .
+	eq selectStatus(M, N) = unknown [owise] .
+	
+	ceq cacheLineSet(Ca, size, N, Assoc(i)) = empty if Ca[(N rem (size quo i))] == undefined .
+	eq cacheLineSet(Ca, size, N, Assoc(i)) = Ca[N rem (size quo i)] .
+	
+	eq updateLine((M, N |-> inv), N) = (M, N |-> sh) .
+	eq updateLine((M, N |-> sh), N) = (M, N |-> inv) .
+	eq updateLine(Assoc(i), Ca, size, N, s, s') = update((N rem (size quo i)), ((N |-> s), Ca[(N rem (size quo i))] \ (N |-> s')), Ca) .
+	eq updateLine(Assoc(i), Ca, size, N |-> s) = update((N rem (size quo i)), ((N |-> s), Ca[(N rem (size quo i))] \ (N |-> inv)), Ca) .
+	
+	ceq statusSet((M, (x |-> s)), st) = statusSet(M, (st, s)) if | M | > 0 .
+	eq statusSet(x |-> s, st) = st, s .
+	eq allModified(empty, mapPol) = false .
+	ceq allModified(M, Assoc(i)) = false if | M | < i .
+	ceq allModified(M, mapPol) = false if ((sh in statusSet(M, empty)) or (inv in statusSet(M, empty))) .
+	eq allModified(M, mapPol) = true [owise] .
+	
+	 
+    eq LineToFlush(M, mo, mapPol) = no(M, mo) .
+    ceq no((M, (x |-> s)), s') = x if s == s' .
+	
+
+	ceq fetchUpdateLine(Ca, size, N, s, Assoc(i)) = update((N rem (size quo i)), ((N |-> s), empty), Ca) if Ca[(N rem (size quo i))] == undefined  .
+	eq fetchUpdateLine(Ca, size, N, s, Assoc(i)) = Select(Ca, size, N, s, Assoc(i)) [owise] .
+	
+	ceq Select(Ca, size, N, s, Assoc(i)) = updateLine(Assoc(i), cacheFilter(Ca, size, N, Assoc(i)), size, N |-> s) if not 
+												 (| cacheLineSet(Ca, size, N, Assoc(i)) | < (i)) .
+	eq Select(Ca, size, N, s, Assoc(i)) = updateLine(Assoc(i), Ca, size, N |-> s) [owise] .
+	
+	
+	
+	ceq cacheFilter(Ca, size, N, Assoc(i)) = removeLine(Assoc(i), Ca, size, N, (no(cacheLineSet(Ca, size, N, Assoc(i)), inv) |-> inv))  
+													if (inv in statusSet(cacheLineSet(Ca, size, N, Assoc(i)), empty)) .
+	eq cacheFilter(Ca, size, N, Assoc(i)) = 
+	      removeLine(Assoc(i), Ca, size, N, (no(cacheLineSet(Ca, size, N, Assoc(i)), sh) |-> sh)) [owise] . 
+	
+	
+	eq removeLine(Assoc(i), Ca, size, N, x |-> s) = update((N rem (size quo i)), (Ca[(N rem (size quo i))] \ (x |-> s)), Ca) .
+	
+	
+    eq commitCache(Ca, mapPol, size) =  commitCache(Ca, mapPol, size, Ca) .
+	ceq commitCache(Ca, mapPol, size, (Ca', N |-> (M, x |-> s))) = commitCache(updateLine(mapPol, Ca, size, x, sh, mo), mapPol, size, (Ca', N |-> M)) 
+																													if s == mo .
+	ceq commitCache(Ca, mapPol, size, (Ca', N |-> (M, x |-> s))) = commitCache(Ca, mapPol, size, (Ca', N |-> M)) if s =/= mo .
+	eq commitCache(Ca, mapPol, size, (Ca', N |-> empty)) = commitCache(Ca, mapPol, size, Ca') .
+	eq commitCache(Ca, mapPol, size, empty) = Ca .
+	
+	
+	ceq commitMemory((Ca, N |-> (M, x' |-> s')), M') = commitMemory((Ca, N |-> M), updateLine(M', x')) if (s' == mo) .
+	ceq commitMemory((Ca, N |-> (M, x' |-> s')), M') = commitMemory((Ca, N |-> M), M') if (s' =/= mo) .
+	eq commitMemory((Ca, N |-> empty), M') = commitMemory(Ca, M') .
+	eq commitMemory(empty, M') = M' .
+	
+	
+	eq {(broadcast Re from C1) REST} = {(multicast Re from C1 to objectIds(REST)) REST} .
+	eq  multicast Re from C1 to none = none .
+	eq  multicast Re from C1 to C2 ; ReSet = (msg Re from C1 to C2)  (multicast Re from C1 to ReSet) .
+	
+	eq objectIds(< C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > REST) = C1 ; objectIds(REST) . 
+	eq objectIds(< Me : MM | M: mapSet, fetchCount: x > REST) = Me ; objectIds(REST) . 
+	eq objectIds(< Tbl : TBL | Addr: addr > REST) = objectIds(REST) .  
+	eq objectIds(< Sch : Qu | TidSet: Tids > REST) = objectIds(REST) .
+	eq objectIds(< Ta : Task | Data: task > REST) = objectIds(REST) .
+	eq objectIds(< Log(C1) : Log | Data: TidList > REST) = objectIds(REST) .
+	eq objectIds(Ms REST) = objectIds(REST) .
+	eq objectIds(none) = none .
+	
+	eq ExistObj(C1, < Log(C1) : Log | Data: TidList > REST) = true .
+	eq ExistObj(C1, REST) = false [owise] .
+    
+eq (msg RdX(N) from C1 to C1) 
+    < C1 : CR | CM: Ca, Rst: (PrWrBl(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+    =
+    < C1 : CR | CM: updateLine(mapPol, Ca, size, N, mo, sh), Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > . 
+    
+    
+     
+ceq (msg RdX(N) from C2 to C1)  
+	< C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+	=
+    < C1 : CR | CM: updateLine(mapPol, Ca, size, N, inv, sh), Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+    if (selectStatus(mapPol, Ca, size, N) == sh ) and C2 =/= C1 .
+ 
+    
+eq (msg RdX(N) from C2 to C1) 
+	< C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+	= 
+    < C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > [owise] .      
+  
+
+eq (msg RdX(N) from C1 to Me ) 
+   < Me : MM | M: mapSet, fetchCount: x >   = if (selectStatus(mapSet, N) == sh) 
+	     											then 
+	     												< Me : MM | M:  updateLine(mapSet, N), fetchCount: x >  
+	     											else
+	      												< Me : MM | M: mapSet, fetchCount: x >  
+	      									  fi .
+			    	
+eq (msg Rd(N) from C1 to Me) 
+   < Me : MM | M: mapSet, fetchCount: x >  =  < Me : MM | M: mapSet, fetchCount: x >  .    	    
+  
+ceq (msg Rd(N) from C2 to C1) 
+	< C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+	= 
+    < C1 : CR | CM: Ca, Rst: rst, D: (flush(N) ; d), Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >   
+	 	  if (selectStatus(mapPol, Ca, size, N) == mo) . 
+	 	  
+ceq (msg Rd(N) from C2 to C1) 
+	< C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >    
+	= 
+	< C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >   
+	if (selectStatus(mapPol, Ca, size, N) =/= mo) .   
+    
+    			 
+crl [Scheduler] : < Sch : Qu | TidSet: (Tids, T) > 
+                 < Ta : Task | Data: task >
+				 < C1 : CR | CM: Ca, Rst: nil, D: nil, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+				 => 
+				< C1 : CR | CM: Ca, Rst: (task[T] ; commit), D: nil, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >
+			    < Sch : Qu | TidSet: Tids > 
+				< Ta : Task | Data: task >  if task[T] =/= undefined .
+    			   			 
+    			 
+rl [Spawn] : < Sch : Qu | TidSet: Tids >
+             < C1 : CR | CM: Ca, Rst: (Spawn(T) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >   
+             =>
+             < Sch : Qu | TidSet: (Tids, T) >
+             < C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > . 
+ 
+ rl [Choice] : < C1 : CR | CM: Ca, Rst: ((Rs ? Rs') ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+               =>
+               < C1 : CR | CM: Ca, Rst: (Rs ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > .
+               
+rl [Repeat-infinite] : < C1 : CR | CM: Ca, Rst: ((rst' *) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >
+                 =>
+                 < C1 : CR | CM: Ca, Rst: ( ((rst' ; (rst' *)) ? Skip) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > .
+                 
+crl [Repeat-Bounded-1] : < C1 : CR | CM: Ca, Rst: ((rst' * i) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >
+                         =>
+                         < C1 : CR | CM: Ca, Rst: (rst' ; (rst' * (i - 1)) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > if i > 0 .
+                         
+rl [Repeat-Bounded-2] : < C1 : CR | CM: Ca, Rst: ((rst' * 0) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >
+                         =>
+                         < C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > .
+            
+                           			 
+crl [PrRd1] : < C1 : CR | CM: Ca, Rst: (PrRd(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+			  < Tbl : TBL | Addr: addr > 
+	          =>
+	          < Tbl : TBL | Addr: addr > 
+			  < C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: (h + 1), CacheSz: size, Assoc: mapPol >  
+				   if ((selectStatus(mapPol, Ca, size, addr[ref(r)]) == sh) or (selectStatus(mapPol, Ca, size, addr[ref(r)]) == mo)) . 
+	
+ crl [PrRd2] : < C1 : CR | CM: Ca,  Rst: (PrRd(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+ 				< Tbl : TBL | Addr: addr > 
+			  =>
+			  < Tbl : TBL | Addr: addr > 
+			  < C1 : CR | CM: Ca, Rst: (PrRdBl(r) ; rst), D: (d ; fetch(addr[ref(r)])), Miss: (m + 1), Hit: h, CacheSz: size, Assoc: mapPol > 
+			  (broadcast Rd(addr[ref(r)]) from C1)
+	         if  ((selectStatus(mapPol, Ca, size, addr[ref(r)]) == inv) or (selectStatus(mapPol, Ca, size, addr[ref(r)]) == unknown)) . 	    					
+
+
+crl [PrRdBlock1] :  < C1 : CR | CM: Ca, Rst: (PrRdBl(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >
+		 	    	< Tbl : TBL | Addr: addr > 
+		 	    	=>
+		 	    	< Tbl : TBL | Addr: addr > 
+		 			< C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+					if (selectStatus(mapPol, Ca, size, addr[ref(r)]) == sh) .       
+						 
+crl [PrRdBlock2] :  < C1 : CR | CM: Ca,  Rst: (PrRdBl(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+					< Tbl : TBL | Addr: addr > 
+			  		=>
+			  		< Tbl : TBL | Addr: addr >
+			  		< C1 : CR | CM: Ca, Rst: (PrRdBl(r) ; rst), D: (d ; fetch(addr[ref(r)])), Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+			  		(broadcast Rd(addr[ref(r)]) from C1)
+	         		if  (occurs(fetch(addr[ref(r)]), d) == false) and 
+	          		((selectStatus(mapPol, Ca, size, addr[ref(r)]) == inv) or (selectStatus(mapPol, Ca, size, addr[ref(r)]) == unknown)) . 
+		              
+                           
+	                   
+crl[PrWr1] :  < C1 : CR | CM: Ca, Rst: (PrWr(r) ; rst),  D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >
+			  < Tbl : TBL | Addr: addr >
+			  =>
+		 	  < Tbl : TBL | Addr: addr >
+			  < C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: (h + 1), CacheSz: size, Assoc: mapPol > 
+	    					if (selectStatus(mapPol, Ca, size, addr[ref(r)]) == mo)  .
+	    					
+crl [PrWr2] : < C1 : CR | CM: Ca, Rst: (PrWr(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+			  < Tbl : TBL | Addr: addr >
+			  =>
+			  < Tbl : TBL | Addr: addr >
+			  < C1 : CR | CM: Ca, Rst: (PrWrBl(r) ; rst), D: d, Miss: m, Hit: (h + 1), CacheSz: size, Assoc: mapPol > 
+			  (broadcast RdX(addr[ref(r)]) from C1)  
+			  if (selectStatus(mapPol, Ca, size, addr[ref(r)]) == sh) .	    					
+	    					
+crl [PrWr3] : < C1 : CR | CM: Ca, Rst: (PrWr(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+			  < Tbl : TBL | Addr: addr > 
+			  =>
+			  < Tbl : TBL | Addr: addr >
+			  < C1 : CR | CM: Ca, Rst: (PrWrBl(r) ; rst), D: (d ; fetch(addr[ref(r)])), Miss: (m + 1), Hit: h, CacheSz: size, Assoc: mapPol > 
+			  (broadcast Rd(addr[ref(r)]) from C1)
+			  if (selectStatus(mapPol, Ca, size, addr[ref(r)]) == inv) or 
+			  (selectStatus(mapPol, Ca, size, addr[ref(r)]) == unknown) .	
+		
+	    	          			 
+crl [PrWrBlock1] : < C1 : CR | CM: Ca, Rst: (PrWrBl(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+			       < Tbl : TBL | Addr: addr >  
+			  	   =>
+				   < Tbl : TBL | Addr: addr >
+                   < C1 : CR | CM: Ca,  Rst: (PrWrBl(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+                   (broadcast RdX(addr[ref(r)]) from C1)
+			          if selectStatus(mapPol, Ca, size, addr[ref(r)]) == sh .
+			          
+crl [PrWrBlock2] : < C1 : CR | CM: Ca, Rst: (PrWrBl(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+				   < Tbl : TBL | Addr: addr > 				   
+			 	   =>
+			       < Tbl : TBL | Addr: addr >
+			       < C1 : CR | CM: Ca, Rst: (PrWrBl(r) ; rst), D: (d ; fetch(addr[ref(r)])), Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+			       (broadcast Rd(addr[ref(r)]) from C1)
+				   if ((selectStatus(mapPol, Ca, size, addr[ref(r)]) == inv) or (selectStatus(mapPol, Ca, size, addr[ref(r)]) == unknown)) 
+				   and (occurs(fetch(addr[ref(r)]), d) == false) .			          
+	 				
+						
+crl [Fetch1] : < C1 : CR | CM: Ca, Rst: rst, D: (fetch(N) ; d), Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+	 	       < Me : MM | M: mapSet, fetchCount: x' >
+	 	       =>  	
+	 	       < C1 : CR | CM: fetchUpdateLine(Ca, size, N, sh, mapPol), Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+	 	 	   < Me : MM | M: mapSet, fetchCount: (x' + 1) > if (allModified(cacheLineSet(Ca, size, N, mapPol), mapPol) == false and 
+	 			   (selectStatus(mapSet, N) == sh)) . 
+
+crl [Fetch2] : < C1 : CR | CM: Ca, Rst: rst, D: (fetch(N) ; d), Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+	 		   =>  
+	 		   < C1 : CR | CM: Ca, Rst: rst, D:  (flush(LineToFlush(cacheLineSet(Ca, size, N, mapPol), mo, mapPol)) ; fetch(N) ; d), 
+	 		   Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > if (allModified(cacheLineSet(Ca, size, N, mapPol), mapPol) == true) .
+	 				
+crl [Flush1] :   < C1 : CR | CM: Ca, Rst: rst, D: (flush(N) ; d), Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+                 < Me : MM | M: mapSet, fetchCount: x >
+                 =>
+	    	     < Me : MM | M:  updateLine(mapSet, N), fetchCount: x >
+	 			 < C1 : CR | CM: updateLine(mapPol, Ca, size, N, sh, mo), Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol >  
+			     if (selectStatus(mapPol, Ca, size, N) == mo) .
+				   
+		
+crl [Flush2] :   < C1 : CR | CM: Ca, Rst: rst, D: (flush(N) ; d), Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+	    		 =>
+	            < C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 	
+	            if (selectStatus(mapPol, Ca, size, N) =/= mo) .	
+	         
+crl [commit-1] :  < C1 : CR | CM: Ca, Rst: (commit(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+				 < Tbl : TBL | Addr: addr >
+					=>
+				 < Tbl : TBL | Addr: addr >
+				 < C1 : CR | CM: Ca, Rst: rst, D: (d ; flush(addr[ref(r)])), Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+				 if selectStatus(mapPol, Ca, size, addr[ref(r)]) == mo .
+				 	             
+crl [commit-ignore] :  < C1 : CR | CM: Ca, Rst: (commit(r) ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+				 < Tbl : TBL | Addr: addr >
+					=>
+				 < Tbl : TBL | Addr: addr >
+				 < C1 : CR | CM: Ca, Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+				 if selectStatus(mapPol, Ca, size, addr[ref(r)]) =/= mo .	             				
+  
+rl [commit-All] : < C1 : CR | CM: Ca, Rst: (commit ; rst), D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > 
+				 < Me : MM | M: mapSet, fetchCount: x >
+					=>
+				 < Me : MM | M: commitMemory(Ca, mapSet), fetchCount: x >
+				 < C1 : CR | CM: commitCache(Ca, mapPol, size), Rst: rst, D: d, Miss: m, Hit: h, CacheSz: size, Assoc: mapPol > .		 	    								   
+endm    

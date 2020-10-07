@@ -1,0 +1,47 @@
+
+This Readme contains information concerning the use of the Maude implementation of our model of parallel architectures.
+
+
+* Pre-requisites
+  -------------------
+  
+  Maude 2 or higher 
+  Maude home-page http://maude.cs.uiuc.edu.
+  
+* Explanation of files
+  --------------------------
+  1. core-config-parallel.maude
+  
+      This module explains the run-time syntax of the operational semantics. 
+      
+  2. architecture-parallel.maude
+  
+      This module explains various objects in the configuration and the cache memory structure on the basis of 
+      associativity. It also explains about main memory architecture
+      
+  3. local-rules-parallel.maude
+  
+     It includes rewriting rules and equations for global and local semantics.
+     
+  4. core-test-parallel.maude
+  
+      This module shows some initial configurations namely config0, config1,...These configurations 
+      can be used for simulations.
+      
+  5. test-file-parallel
+  
+      This file has some search conditions which will verify some of the invariants. 
+      
+ * How to simulate the this Maude model
+   ---------------------------------------  
+        Download the file 'wrla2016maude.zip' and extract it. In order to simulate the model, first invoke Maude interpreter.Then type 'load core-test-parallel.maude'. The  'core-test-parallel.maude' module will bring all other modules in Maude user-interface. 
+        Then the 'frew {config0}' command will simulate the initial configuration {config0}. All other configurations can be 
+        simulated in the same way.
+        
+  * How to use search conditions
+  ---------------------------------------
+  
+     The 'test-file-parallel.maude' file includes some search conditions. One can copy and paste each search condition
+      in Maude user-interface after loading the 'core-test-parallel.maude' module. Any initial configuration(config0, config1,...) 
+      can be used for these search conditions.                        
+    

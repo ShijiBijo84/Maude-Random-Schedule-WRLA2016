@@ -1,0 +1,148 @@
+***load local-rules-parallel.maude
+
+load /Users/shiji/PMA/papers/upscale/implementations/maude-new-vers/maude-random-schedule/local-rules-parallel.maude
+
+    
+
+mod CORE-TEST is 
+
+	ex RULES .
+	ops C1 C2 C3 C4 C5 C6 C7 C8 C9 C10 M Tbl Sy Sch Ta : -> Oid [ctor] .
+	ops config0 config1 config2 config3 config4 config5 config6 config7 config8 : -> Configuration .
+	
+
+
+eq config0 =
+< C1 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(2) > 
+< Sch : Qu | TidSet: ('main) >   
+< Ta : Task | Data: 'main |-> Spawn('T1), 'T1 |-> ( PrWr(0) ; PrWr(5); PrWr(0)) >
+< Tbl : TBL | Addr: ref(0) |-> 0,  ref(1) |-> 1, ref(2) |-> 2,ref(3) |-> 3, ref(4) |-> 4 , 
+					ref(5) |-> 5 > 
+< M : MM | M: 0 |-> sh, 1 |-> sh, 2 |-> sh,3 |-> sh, 4 |-> sh, 5 |-> sh, fetchCount: 0 >  .
+
+
+eq config1 =
+< C1 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) > 
+< C2 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) >  
+< Sch : Qu | TidSet: ('main) >  
+< Ta : Task | Data: 'main |-> (Spawn('T1); Spawn('T2)), 
+					'T1 |-> ( PrRd(0); PrWr(1)), 
+					'T2 |-> ( PrRd(2); PrWr(3)) >
+< Tbl : TBL | Addr: ref(0) |-> 0,  ref(1) |-> 0, ref(2) |-> 0,ref(3) |-> 0 > 
+< M : MM | M: 0 |-> sh, 1 |-> sh, 2 |-> sh,3 |-> sh, 4 |-> sh, fetchCount: 0 >  . 
+
+	
+eq config2 =
+< C1 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) > 
+< C2 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) >  
+< Sch : Qu | TidSet: ('main) >   
+< Ta : Task | Data: 'main |-> (Spawn('T1); Spawn('T2)), 
+					'T1 |-> ( PrRd(0); PrWr(1)), 
+					'T2 |-> ( PrRd(2); PrWr(3)) >
+< Tbl : TBL | Addr: ref(0) |-> 0,  ref(1) |-> 0, ref(4) |-> 0,ref(5) |-> 0, 
+					ref(2) |-> 1,  ref(3) |-> 1, ref(6) |-> 1,ref(7) |-> 1 > 
+< M : MM | M: 0 |-> sh, 1 |-> sh, 2 |-> sh,3 |-> sh, 4 |-> sh, fetchCount: 0 >  .	
+
+ 
+
+eq config3 =
+< C1 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) > 
+< C2 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) >  
+< Sch : Qu | TidSet: 'main >  
+< Ta : Task | Data: 'main |-> (Spawn('T1) ; Spawn('T2)), 
+					'T1 |-> ( PrRd(0); PrWr(1)), 
+					'T2 |-> ( PrRd(2); PrWr(3)) >
+< Tbl : TBL | Addr: ref(0) |-> 0,  ref(1) |-> 1, ref(2) |-> 2,ref(3) |-> 3 > 
+< M : MM | M: 0 |-> sh, 1 |-> sh, 2 |-> sh,3 |-> sh, 4 |-> sh, fetchCount: 0 >  .  
+ 
+ 
+ 
+eq config4 =
+< C1 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(2) > 
+< C2 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(2) >  
+< C3 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(2) > 
+< Sch : Qu | TidSet: 'main > 
+< Ta : Task | Data: 'main |-> (Spawn('T1); Spawn('T2); Spawn('T3); Spawn('T4)), 
+					'T1 |-> (  PrRd(1); PrWr(0)),
+					'T2 |-> ( PrRd(1); PrWr(0)),
+					'T3 |-> ( PrRd(1); PrWr(0)),
+					'T4 |-> ( PrWr(1); PrWr(0)) >
+< Tbl : TBL | Addr: ref(0) |-> 0,  ref(1) |-> 1, ref(2) |-> 2,ref(3) |-> 3, ref(4) |-> 4,  ref(5) |-> 5, ref(6) |-> 6, ref(7) |-> 7, ref(8) |-> 8,  
+                    ref(9) |-> 9, ref(10) |-> 10, ref(11) |-> 11 > 
+< M : MM | M: 0 |-> sh, 1 |-> sh, 2 |-> sh,3 |-> sh, 4 |-> sh, 5 |-> sh, 6 |-> sh, 7 |-> sh,8 |-> sh, 9 |-> sh, fetchCount: 0 >  . 
+ 
+ 
+ eq config5 =
+< C1 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) > 
+< C2 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) >  
+< C3 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) > 
+< C4 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) >
+< C5 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) >
+< C6 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) >
+< C7 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) >
+< C8 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) >
+< C9 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) >
+< C10 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 10, Assoc:  Assoc(5) >
+< Sch : Qu | TidSet: ('main) >  
+
+< Ta : Task | Data: 'main |-> (Spawn('T1); Spawn('T2)), 
+					'T1 |-> (PrRd(2); PrWr(3); PrRd(0); PrWr(1); Spawn('T7); PrRd(3); PrWr(4); PrRd(5); PrWr(6)),
+					'T2 |-> (PrRd(3); PrWr(4); PrRd(5); PrWr(6); Spawn('T3); PrRd(4); PrWr(5); PrRd(6); PrWr(7)),
+					'T3 |-> ( PrRd(4); PrWr(5); PrRd(6); PrWr(7); Spawn('T4); PrRd(3); PrWr(4); PrRd(5); Spawn('T7)),
+					'T4 |-> ( PrRd(0); PrWr(1); PrRd(2); PrWr(3); Spawn('T5); PrRd(4); PrWr(5); PrRd(6); PrWr(7); Spawn('T1)),
+					'T5 |-> ( Spawn('T6); PrRd(4); PrWr(5); PrRd(6); PrWr(7); PrRd(2); PrWr(3); PrRd(0); PrWr(1)),
+					'T6 |-> (Spawn('T7); PrRd(2); PrWr(3); PrRd(0); Spawn('T1); PrRd(6); PrWr(7); PrRd(2); PrWr(3); PrRd(0)),
+					'T7 |-> (Spawn('T8); PrRd(3); PrWr(4); PrRd(5); PrWr(6)),
+					'T8 |-> (PrRd(3); PrWr(4); PrRd(5); PrWr(6)) >
+					
+< Tbl : TBL | Addr: ref(0) |-> 0,  ref(1) |-> 1, ref(2) |-> 2,ref(3) |-> 3, ref(4) |-> 4,  ref(5) |-> 5, ref(6) |-> 6, ref(7) |-> 7 >
+< M : MM | M: 0 |-> sh, 1 |-> sh, 2 |-> sh,3 |-> sh, 4 |-> sh, 5 |-> sh, 6 |-> sh, 7 |-> sh,8 |-> sh, 9 |-> sh, fetchCount: 0 >  .  	
+
+
+eq config6 =
+	
+< C1 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) > 
+< C2 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) >  
+< Sch : Qu | TidSet: ('main) > 
+
+< Ta : Task | Data:   'main |-> (Spawn('read_0); Spawn('write_1)),
+              'read_0 |-> (PrRd(0); Spawn('read_1)),
+              'read_1 |-> PrRd(1),
+              'write_1 |-> (PrWr(1); Spawn('write_0)),
+              'write_0 |-> PrWr(0) >
+< Tbl : TBL | Addr: ref(0) |-> 0,  ref(1) |-> 0 > 
+< M : MM | M: 0 |-> sh,  fetchCount: 0 >  .
+
+
+eq config7 =
+	
+< C1 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) > 
+< C2 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) > 
+< Sch : Qu | TidSet: ('main) >  
+< Ta : Task | Data:   'main |-> (Spawn('read_0); Spawn('write_1)),
+             'read_0 |-> (PrRd(0); Spawn('read_1)),
+             'read_1 |-> PrRd(1),
+             'write_1 |-> (PrWr(1); Spawn('write_0)),
+             'write_0 |-> PrWr(0) >
+< Tbl : TBL | Addr: ref(0) |-> 0,  ref(1) |-> 1 > 
+< M : MM | M: 0 |-> sh, 1 |-> sh, fetchCount: 0 >  .
+
+eq config8 = 
+< C1 : CR | CM: empty, Rst: nil, D: nil, Miss: 0, Hit: 0, CacheSz: 5, Assoc:  Assoc(1) >
+< Sch : Qu | TidSet: ('main) > 
+
+< Ta : Task | Data:   'main |-> (Spawn('read_0); Spawn('write_1)),
+              'read_0 |-> (PrRd(0); Spawn('read_1)),
+              'read_1 |-> PrRd(1),
+              'write_1 |-> (PrWr(1); Spawn('write_0)),
+              'write_0 |-> PrWr(0) >
+< Tbl : TBL | Addr: ref(0) |-> 0,  ref(1) |-> 0 > 
+< M : MM | M: 0 |-> sh,  fetchCount: 0 >  .
+
+
+
+endm
+
+	
+	
+	

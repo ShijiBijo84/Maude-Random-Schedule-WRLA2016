@@ -1,0 +1,48 @@
+
+*********Search all possible final states********
+
+1. search {config7} =>! {C:Configuration} .
+
+2. Check for coherency
+--------------------------------------------------
+
+ search {config4} =>* {C:Configuration
+< C1:Oid : CR | CM: (x:Int |-> (y:Address |-> stA:Status), CaA:Cache{Int,MemoryMap}), Atts:AttributeSet >
+< C2:Oid : CR | CM: (x:Int |-> (y:Address |-> stB:Status), CaB:Cache{Int,MemoryMap}), Atts':AttributeSet >
+ < O:Oid : MM | M: (y:Address |-> stM:Status, D:MemoryMap),fetchCount: N:Int >
+
+ }   
+ such that ((stM:Status == sh) and (stA:Status == mo)) or 
+ 		   ((stA:Status == mo) and (stB:Status == mo)) or 
+ 		   ((stA:Status == mo) and (stB:Status == sh))  .
+ 		   
+
+
+ 
+3. No deadlock or livelock which result in suspending tasks forever. 
+---------------------------------------------------------------------------------
+
+search {config4} =>! {C:Configuration 
+< A:Oid : CR | Rst: rstA:stList,D: dA:stList,Atts:AttributeSet >
+ }   
+ such that (rstA:stList =/= nil) or (dA:stList =/= nil) .
+
+ 4. At the end of task execution main memory is shared.
+ -----------------------------------------------------------
+ search {config4} =>! {C:Configuration 
+< O:Oid : MM | M: (x:Address |-> stM:Status, D:MemoryMap),fetchCount: N:Int >
+ }   such that (stM:Status == inv) .
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+          							
